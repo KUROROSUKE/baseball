@@ -3,77 +3,118 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ball Orbit Simulation</title>
-    <style>
-        canvas {
-            border: 1px solid black;
-        }
-    </style>
+    <title>Baseball</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <canvas id="orbitCanvas" width="800" height="600"></canvas>
-
+    <label>秒速(m/s)：<input id="velocity" type="number" size="40" value="10"></label>
+    <p></p>
+    <label>角度(Deg)：<input id="angle" type="number" size="40" value="45"></label>
+    <p></p>
+    <button id="detailButton">詳細設定</button>
+    <div id="details" style="display: none;">
+        <label>重量(g)：<input id="mass" type="number" size="40" value="128"></label>
+        <p></p>
+        <label>半径(m)：<input id="radius" type="number" size="40" value="0.05"></label>
+        <p></p>
+        <label>重力加速度(m/s^2)：<input id="gravity" type="number" size="40" value="9.8"></label>
+        <p></p>
+        <label>抵抗係数：<input id="resis_coeff" type="number" size="40" value="0.35"></label>
+        <p></p>
+        <label>空気密度(kg/m^3)：<input id="air_density" type="number" size="40" value="1.225"></label>
+    </div>
+    <button id="simulate" onclick="simulate()">シミュレート</button>
+    <canvas id="scatterChart" width="300" height="200"></canvas>
     <script>
-        function airResistance(radius, velocity, resis_coeff = 0.35, air_density = 1.225) {
-            var force = resis_coeff * air_density * 4 * Math.PI * radius * Math.pow(velocity, 2);
-            return force;
+        let x_history = [];
+        let y_history = [];
+        document.getElementById("detailButton").addEventListener("click", function() {
+            var detailsDiv = document.getElementById("details");
+            if (detailsDiv.style.display === "none") {
+                detailsDiv.style.display = "block";
+            } else {
+                detailsDiv.style.display = "none";
+            }
+        });
+
+        function copysign(number, variable) {
+            if (variable < 0) {
+                return -Math.abs(number);
+            } else {
+                return Math.abs(number);
+            }
         }
 
-        function gravity(time, gravity = 9.8) {
-            var force = gravity * time;
-            return force;
+        function air_resistance(radius,velocity,resis_coeff,air_density) {
+            var Force = resis_coeff * air_density * 4 * Math.PI * radius * Math.pow(velocity,2);
+            return Force;
         }
 
-        function simulate(velocity, angle, radius, mass) {
+        function gravityf(time,gravity) {
+            var Force = gravity * time;
+            return Force;
+        }
+
+        function displayScatterPlot() {
+            var ctx = document.getElementById('scatterChart').getContext('2d');
+            var scatterData = {
+                datasets: [{
+                    label: 'Trajectory',
+                    data: x_history.map((x, index) => ({ x: x, y: y_history[index] })),
+                    backgroundColor: 'rgba(255, 99, 132, 0.5)', // ポイントの色と透明度
+                    borderColor: 'rgba(255, 99, 132, 1)', // ポイントの枠線の色
+                    borderWidth: 1 // ポイントの枠線の太さ
+                }]
+            };
+            var scatterChart = new Chart(ctx, {
+                type: 'scatter',
+                data: scatterData,
+                options: {
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            position: 'bottom'
+                        },
+                        y: {
+                            type: 'linear',
+                            position: 'left'
+                        }
+                    }
+                }
+            });
+        }
+        
+        
+
+        function simulate() {
+            let velocity  = parseFloat(document.getElementById("velocity").value);
+            let angle  = Math.PI * parseFloat(document.getElementById("angle").value) / 180;
+            let mass = parseFloat(document.getElementById("mass").value);
+            let radius  = parseFloat(document.getElementById("radius").value);
+            let gravity  = parseFloat(document.getElementById("gravity").value);
+            let resis_coeff  = parseFloat(document.getElementById("resis_coeff").value);
+            let air_density  = parseFloat(document.getElementById("air_density").value);
             var x = 0.0;
             var y = 1.0;
             var time = 0;
-            var x_history = [];
-            var y_history = [];
-            angle = angle * Math.PI / 180;
-            while (y > 0) {
+            //let x_history = [];
+            //let y_history = [];
+            while (y>0) {
                 x_history.push(x);
                 y_history.push(y);
                 var x_speed = Math.cos(angle) * velocity;
                 var y_speed = Math.sin(angle) * velocity;
-                angle = Math.atan2(y_speed, x_speed);
-                x = x + x_speed - airResistance(radius, velocity) / mass;
-                y = y + y_speed - Math.sign(y_speed) * airResistance(radius, velocity) / mass - gravity(time);
-                time += 0.1;
+                angle = Math.atan2(y_speed,x_speed);
+                x += x_speed - air_resistance(radius,velocity,resis_coeff,air_density) / mass;
+                y += y_speed - copysign(air_resistance(radius,velocity,resis_coeff,air_density) / mass , y_speed) - gravityf(time,gravity)
+                time += 1
             }
             x_history.push(x);
             y_history.push(y);
-            return [x_history, y_history];
+            console.log(x_history);
+            console.log(y_history);
+            displayScatterPlot();
         }
-
-        function plotOrbit(x_orbit, y_orbit) {
-            var canvas = document.getElementById('orbitCanvas');
-            var ctx = canvas.getContext('2d');
-    
-            // Clear the canvas
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-            // Set up drawing styles
-            ctx.strokeStyle = 'blue';
-            ctx.lineWidth = 2;
-    
-            // Begin drawing the orbit
-            ctx.beginPath();
-            ctx.moveTo(x_orbit[0] * canvas.width, (1 - y_orbit[0]) * canvas.height);
-    
-            // Plot each point of the orbit
-            for (var i = 1; i < x_orbit.length; i++) {
-                ctx.lineTo(x_orbit[i] * canvas.width, (1 - y_orbit[i]) * canvas.height);
-            }
-    
-            // Stroke the path
-            ctx.stroke();
-        }
-
-        var result = simulate(50, 45, 0.05, 128);
-        var x_orbit = result[0];
-        var y_orbit = result[1];
-        plotOrbit(x_orbit, y_orbit);
     </script>
 </body>
 </html>
