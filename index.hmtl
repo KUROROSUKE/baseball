@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ball Orbit Simulation</title>
+    <style>
+        canvas {
+            border: 1px solid black;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="orbitCanvas" width="800" height="600"></canvas>
+
+    <script>
+        function airResistance(radius, velocity, resis_coeff = 0.35, air_density = 1.225) {
+            var force = resis_coeff * air_density * 4 * Math.PI * radius * Math.pow(velocity, 2);
+            return force;
+        }
+
+        function gravity(time, gravity = 9.8) {
+            var force = gravity * time;
+            return force;
+        }
+
+        function simulate(velocity, angle, radius, mass) {
+            var x = 0.0;
+            var y = 1.0;
+            var time = 0;
+            var x_history = [];
+            var y_history = [];
+            angle = angle * Math.PI / 180;
+            while (y > 0) {
+                x_history.push(x);
+                y_history.push(y);
+                var x_speed = Math.cos(angle) * velocity;
+                var y_speed = Math.sin(angle) * velocity;
+                angle = Math.atan2(y_speed, x_speed);
+                x = x + x_speed - airResistance(radius, velocity) / mass;
+                y = y + y_speed - Math.sign(y_speed) * airResistance(radius, velocity) / mass - gravity(time);
+                time += 0.1;
+            }
+            x_history.push(x);
+            y_history.push(y);
+            return [x_history, y_history];
+        }
+
+        function plotOrbit(x_orbit, y_orbit) {
+            var canvas = document.getElementById('orbitCanvas');
+            var ctx = canvas.getContext('2d');
+    
+            // Clear the canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+            // Set up drawing styles
+            ctx.strokeStyle = 'blue';
+            ctx.lineWidth = 2;
+    
+            // Begin drawing the orbit
+            ctx.beginPath();
+            ctx.moveTo(x_orbit[0] * canvas.width, (1 - y_orbit[0]) * canvas.height);
+    
+            // Plot each point of the orbit
+            for (var i = 1; i < x_orbit.length; i++) {
+                ctx.lineTo(x_orbit[i] * canvas.width, (1 - y_orbit[i]) * canvas.height);
+            }
+    
+            // Stroke the path
+            ctx.stroke();
+        }
+
+        var result = simulate(50, 45, 0.05, 128);
+        var x_orbit = result[0];
+        var y_orbit = result[1];
+        plotOrbit(x_orbit, y_orbit);
+    </script>
+</body>
+</html>
